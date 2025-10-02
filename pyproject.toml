@@ -1,0 +1,23 @@
+[project]
+name = "youtube-sentiment"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Core Libraries for Data & API
+    "google-api-python-client",
+    "pandas",
+    "numpy",
+
+    # Machine Learning & NLP
+    "scikit-learn",
+    "nltk",
+    "textblob",
+    "langdetect", 
+
+    # Visualization
+    "matplotlib",
+    "seaborn",
+    "wordcloud",
+]
