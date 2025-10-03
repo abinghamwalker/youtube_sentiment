@@ -1,7 +1,7 @@
 [project]
 name = "youtube-sentiment"
 version = "0.1.0"
-description = "Add your description here"
+description = "A detailed sentiment analysis of YouTube comments using a Random Forest classifier."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -14,10 +14,16 @@ dependencies = [
     "scikit-learn",
     "nltk",
     "textblob",
-    "langdetect", 
+    "langdetect",
 
-    # Visualization
+    # Visualization & Reporting
     "matplotlib",
     "seaborn",
     "wordcloud",
+    "fpdf2",
+
+    # Unit testing & Code quality
+    "black",
+    "ruff",
+    "pytest",
 ]
