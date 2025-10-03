@@ -78,16 +78,19 @@ uv pip sync
 The scraper needs a YouTube Data API v3 key to function.
 
 - Create a file named `config.ini` in the root of the project directory.
-- Copy the following template into your `config.ini` and fill in your details. **This file is listed in `.gitignore` and will not be committed.**
+- Copy the following template into your `config.ini` and fill in your details. The max_comments is the maximum number of comments the system will download (note youtube has rate limits) default is 10,000 if this value is missingmax_comments = 5000
 
-  ```ini
-  [youtube_api]
-  api_key = YOUR_YOUTUBE_API_KEY_HERE
+**This file is listed in `.gitignore` and will not be committed.**
 
-  [video_details]
-  # Example: Demon Slayer Infinity Castle Trailer
-  video_id = x7uLutVRBfI
-  ```
+```ini
+[youtube_api]
+api_key = YOUR_YOUTUBE_API_KEY_HERE
+
+[video_details]
+# Example: The Mandalorian and Grogu
+video_id = _pa1KLXuW0Y
+max_comments = 5000
+```
 
 **6. NLTK Data**
 The analysis script will automatically download the necessary NLTK data packages (`punkt`, `stopwords`, etc.) on its first run. No manual action is needed.
@@ -110,10 +113,10 @@ python src/youtube_scraper.py
 ==================================================
 YOUTUBE COMMENTS SCRAPER
 ==================================================
-Configured for Video ID: x7uLutVRBfI
-Saving files with base name: 'demon_slayer_...'
+Configured for Video ID: _pa1KLXuW0Y
+Saving files with base name: 'the_mandalorian_...'
 ...
-✓ Data saved to: csv_files/demon_slayer_..._comments_20231028_100000.csv
+✓ Data saved to: csv_files/the_mandalorian_..._comments_20231028_100000.csv
 ```
 
 ### Step 2: Run the Sentiment Analysis

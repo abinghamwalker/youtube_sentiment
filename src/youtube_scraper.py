@@ -31,19 +31,20 @@ CSV_OUTPUT_DIR = os.path.join(ROOT_DIR, "csv_files")
 
 
 def load_config():
-    """Loads API key and Video ID from config.ini in the project root."""
+    """Loads API key, Video ID, and Max Comments from config.ini."""
     config = configparser.ConfigParser()
     if not os.path.exists(CONFIG_FILE):
         print(f"ERROR: config.ini not found at '{CONFIG_FILE}'")
-        return None, None
+        return None, None, None
     config.read(CONFIG_FILE)
     try:
         api_key = config["youtube_api"]["api_key"]
         video_id = config["video_details"]["video_id"]
-        return api_key, video_id
+        max_comments = int(config.get("video_details", "max_comments", fallback="10000"))
+        return api_key, video_id, max_comments
     except KeyError as e:
         print(f"ERROR: Missing key in config.ini: {e}")
-        return None, None
+        return None, None, None
 
 
 def get_video_title(api_key, video_id):
@@ -69,13 +70,13 @@ def create_base_filename(video_title, video_id):
 
 
 # --- Main Setup Execution ---
-API_KEY, VIDEO_ID = load_config()
+API_KEY, VIDEO_ID,MAX_COMMENTS = load_config()
 if not API_KEY or not VIDEO_ID:
     exit()
 
 VIDEO_TITLE = get_video_title(API_KEY, VIDEO_ID)
 BASE_FILENAME = create_base_filename(VIDEO_TITLE, VIDEO_ID)
-MAX_COMMENTS = 5000
+
 
 
 # ============================================================================
