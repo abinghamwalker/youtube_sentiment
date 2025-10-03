@@ -14,11 +14,11 @@ from unittest.mock import Mock, patch, MagicMock, mock_open, call
 from datetime import datetime, timedelta
 from googleapiclient.errors import HttpError
 from langdetect import LangDetectException
+from scipy.sparse import csr_matrix
 
 # Add src directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-# Import the module to test (adjust import name to match your actual script name)
 import sentiment_analysis as sa
 
 
@@ -1152,7 +1152,7 @@ class TestDirectoryManagement:
         """Test that output directory paths are properly defined."""
         # These should be defined in the module
         assert hasattr(sa, 'SENTIMENT_ARTIFACTS_DIR')
-        assert not hasattr(sa, 'OUTPUT_ARTIFACTS_DIR')
+        assert hasattr(sa, 'OUTPUT_ARTIFACTS_DIR')
         assert hasattr(sa, 'CSV_INPUT_DIR')
 
 
@@ -1177,71 +1177,77 @@ class TestMatplotlibConfiguration:
 # INTEGRATION TEST FOR MAIN WORKFLOW
 # ============================================================================
 
-@patch('sentiment_analysis.create_pdf_report')
-@patch('sentiment_analysis.plt.savefig')
-@patch('sentiment_analysis.RandomizedSearchCV')
-@patch('sentiment_analysis.TfidfVectorizer')
-@patch('sentiment_analysis.pd.read_csv')
-@patch('sentiment_analysis.find_latest_comments_file')
-@patch('sentiment_analysis.train_test_split')
-def test_main_workflow_orchestration(
-    mock_split, mock_find_file, mock_read_csv, mock_tfidf, 
-    mock_search, mock_savefig, mock_pdf, sample_comments_df
-):
+def test_main_workflow_orchestration(sample_comments_df):
     """
-    Tests that the main() function correctly orchestrates the pipeline
-    by dynamically adapting to the data size.
+    Tests that the main() function correctly orchestrates the pipeline by
+    calling all necessary functions in order.
     """
-    # --- 1. SETUP MOCKS ---
-    mock_find_file.return_value = 'fake_comments.csv'
-    mock_read_csv.return_value = sample_comments_df
-    
-    temp_df = sample_comments_df.copy()
-    temp_df = temp_df[temp_df['comment_text'].str.len() > 15]
-    temp_df['cleaned_text'] = temp_df['comment_text'].apply(sa.preprocess_text)
-    temp_df = temp_df[temp_df['cleaned_text'].str.len() > 0]
-    num_samples = len(temp_df) # This will be 8
-    
-    # Now, calculate train/test split based on the *actual* final size
-    num_test = int(np.ceil(num_samples * 0.25)) # This will be 2
-    num_train = num_samples - num_test # This will be 6
-    
-    # Mock TfidfVectorizer
-    from scipy.sparse import csr_matrix
-    mock_tfidf_instance = MagicMock()
-    mock_tfidf_instance.fit_transform.return_value = csr_matrix((num_samples, 2500))
-    mock_tfidf_instance.get_feature_names_out.return_value = np.array([f'word_{i}' for i in range(2500)])
-    mock_tfidf.return_value = mock_tfidf_instance
-    
-    # Mock train_test_split
-    X_train, X_test = csr_matrix((num_train, 2500)), csr_matrix((num_test, 2500))
-    y_train, y_test = ['pos']*num_train, ['pos']*num_test
-    mock_split.return_value = (X_train, X_test, y_train, y_test)
-    
-    # Mock RandomizedSearchCV and the model it finds
-    mock_estimator = MagicMock()
-    mock_estimator.predict.side_effect = [
-        np.array(['pos'] * num_test),      # For classification_report on X_test
-        np.array(['pos'] * num_samples)    # For assigning to the full dataframe
-    ]
-    mock_estimator.predict_proba.return_value = np.random.rand(num_samples, 3)
-    mock_estimator.feature_importances_ = np.random.rand(2500)
-    
-    mock_search_instance = MagicMock()
-    mock_search_instance.best_estimator_ = mock_estimator
-    mock_search.return_value = mock_search_instance
-    
-    # --- 2. RUN THE FUNCTION ---
-    with patch('os.path.isdir', return_value=True):
+    with patch('sentiment_analysis.train_test_split') as mock_split, \
+         patch('sentiment_analysis.find_latest_comments_file') as mock_find_file, \
+         patch('sentiment_analysis.pd.read_csv') as mock_read_csv, \
+         patch('sentiment_analysis.TfidfVectorizer') as mock_tfidf, \
+         patch('sentiment_analysis.RandomizedSearchCV') as mock_search, \
+         patch('sentiment_analysis.generate_dashboard') as mock_dashboard, \
+         patch('sentiment_analysis.generate_wordclouds') as mock_wordclouds, \
+         patch('sentiment_analysis.create_pdf_report') as mock_pdf, \
+         patch('src.sentiment_analysis.is_english', return_value=True) as mock_is_english, \
+         patch('sentiment_analysis.load_config', return_value=('fake_api_key', 'fake_video_id')), \
+         patch('sentiment_analysis.get_video_title', return_value='Fake Video Title'), \
+         patch('os.path.isdir', return_value=True):
+
+        # --- 1. SETUP MOCKS ---
+        mock_find_file.return_value = 'fake_comments.csv'
+        mock_read_csv.return_value = sample_comments_df.copy()  
+
+        # --- PRE-CALCULATION ---
+        temp_df = sample_comments_df.copy()
+        temp_df.dropna(subset=['comment_text'], inplace=True)
+        temp_df = temp_df[temp_df['comment_text'].str.len() > 15]
+        temp_df['is_english'] = True
+        temp_df = temp_df[temp_df['is_english']]
+        temp_df['cleaned_text'] = temp_df['comment_text'].apply(sa.preprocess_text)
+        temp_df = temp_df[temp_df['cleaned_text'].str.len() > 0]
+        num_samples = len(temp_df)
+
+        num_test = int(np.ceil(num_samples * 0.25))
+        num_train = num_samples - num_test
+
+        # Configure the remaining mocks
+        mock_tfidf_instance = MagicMock()
+        mock_tfidf_instance.fit_transform.return_value = csr_matrix((num_samples, 2500))
+        mock_tfidf_instance.get_feature_names_out.return_value = np.array([f'word_{i}' for i in range(2500)])
+        mock_tfidf.return_value = mock_tfidf_instance
+
+        X_train, X_test = csr_matrix((num_train, 2500)), csr_matrix((num_test, 2500))
+        y_train, y_test = ['positive']*num_train, ['positive']*num_test
+        mock_split.return_value = (X_train, X_test, y_train, y_test)
+
+        mock_estimator = MagicMock()
+        mock_estimator.predict.side_effect = [
+            np.array(['positive'] * num_test),
+            np.array(['positive'] * num_samples)
+        ]
+        mock_estimator.predict_proba.return_value = np.random.rand(num_samples, 3)
+        mock_estimator.feature_importances_ = np.random.rand(2500)
+        
+        mock_search_instance = MagicMock()
+        mock_search_instance.best_estimator_ = mock_estimator
+        mock_search.return_value = mock_search_instance
+
+        # --- 2. RUN THE FUNCTION ---
         sa.main()
-    
-    # --- 3. ASSERTIONS ---
-    mock_find_file.assert_called_once()
-    mock_read_csv.assert_called_once()
-    mock_split.assert_called_once()
-    mock_search_instance.fit.assert_called_once()
-    assert mock_estimator.predict.call_count == 2
-    mock_pdf.assert_called_once()
+
+        # --- 3. ASSERTIONS ---
+        mock_find_file.assert_called_once()
+        mock_read_csv.assert_called_once()
+        print(f"Sample DF shape: {sample_comments_df.shape}")
+        print(f"Comment lengths: {sample_comments_df['comment_text'].str.len().tolist()}")
+        mock_split.assert_called_once()
+        mock_search_instance.fit.assert_called_once_with(X_train, y_train)
+        assert mock_estimator.predict.call_count == 2
+        mock_dashboard.assert_called_once()
+        mock_wordclouds.assert_called_once()
+        mock_pdf.assert_called_once()
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
