@@ -1,6 +1,5 @@
 """
-YouTube Comments Data Collection Script (STRUCTURED)
-- Lives in the 'src/' directory.
+YouTube Comments Data Collection Script
 - Reads configuration from 'config.ini' in the project root.
 - Fetches the video title to create a dynamic base filename.
 - Saves raw comments data to the 'csv_files/' directory.
@@ -102,6 +101,8 @@ def get_comments(youtube, video_id, max_results):
             )
             response = request.execute()
             for item in response["items"]:
+                if len(comments) >= max_results:
+                    break
                 comment_snippet = item["snippet"]["topLevelComment"]["snippet"]
                 comments.append(
                     {
